@@ -21,6 +21,7 @@ export async function POST(req: Request) {
       address,
     } = body;
 
+    // 1. Validations de base
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Panier invalide" }, { status: 400 });
     }
@@ -29,18 +30,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Total invalide" }, { status: 400 });
     }
 
-    if (!["pickup", "delivery"].includes(deliveryType)) {
-      return NextResponse.json({ error: "Mode invalide" }, { status: 400 });
-    }
-
-    if (deliveryType === "delivery" && (!phone || !address)) {
-      return NextResponse.json(
-        { error: "Téléphone et adresse requis" },
-        { status: 400 }
-      );
-    }
-
-    const { data: order, error } = await supabaseAdmin
+    // 2. Création de la commande principale (Order)
+    const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
         user_id: userId,
@@ -56,45 +47,42 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-    if (error || !order) {
-      console.error(error);
-      return NextResponse.json(
-        { error: "Erreur création commande" },
-        { status: 500 }
-      );
+    if (orderError || !order) {
+      console.error("Erreur Order:", orderError);
+      return NextResponse.json({ error: "Erreur création commande" }, { status: 500 });
     }
-for (const item of items) {
-  if (
-    typeof item.priceCents !== "number" ||
-    item.priceCents <= 0 ||
-    typeof item.quantity !== "number" ||
-    item.quantity <= 0
-  ) {
-    return NextResponse.json(
-      { error: "Article invalide (prix ou quantité)" },
-      { status: 400 }
-    );
-  }
-}
 
+    // 3. Préparation des articles (C'est ici que se trouvait l'erreur)
+    const orderItems = items.map((item) => {
+      // Validation simple de chaque article pendant le mapping
+      if (!item.priceCents || !item.quantity) {
+          throw new Error("Article invalide");
+      }
 
+      return {
+        order_id: order.id, // On lie l'article à l'ID de la commande créée au-dessus
+        product_id: item.id, // Assurez-vous que vos items ont un id de produit
+        quantity: item.quantity,
+        price_cents: item.priceCents,
+        name: item.name || "Bijou", // Optionnel : stocker le nom au moment de l'achat
+      };
+    });
+
+    // 4. Insertion groupée des articles (Order Items)
     const { error: itemsError } = await supabaseAdmin
       .from("order_items")
       .insert(orderItems);
 
     if (itemsError) {
-  console.error("ORDER ITEMS ERROR:", itemsError.message, itemsError.details);
-  return NextResponse.json(
-    { error: itemsError.message },
-    { status: 500 }
-  );
-}
-
+      console.error("ORDER ITEMS ERROR:", itemsError.message);
+      return NextResponse.json({ error: "Erreur lors de l'enregistrement des articles" }, { status: 500 });
+    }
 
     return NextResponse.json({ orderId: order.id });
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+
+  } catch (e: any) {
+    console.error("Global Error:", e);
+    return NextResponse.json({ error: e.message || "Erreur serveur" }, { status: 500 });
   }
 }
 
