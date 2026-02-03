@@ -63,26 +63,33 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+for (const item of items) {
+  if (
+    typeof item.priceCents !== "number" ||
+    item.priceCents <= 0 ||
+    typeof item.quantity !== "number" ||
+    item.quantity <= 0
+  ) {
+    return NextResponse.json(
+      { error: "Article invalide (prix ou quantité)" },
+      { status: 400 }
+    );
+  }
+}
 
-    const orderItems = items.map((i: any) => ({
-      order_id: order.id,
-      name_snapshot: i.name,
-      quantity: i.quantity,
-      price_cents: i.priceCents,
-      customizations_json: i.customizations ?? {},
-    }));
 
     const { error: itemsError } = await supabaseAdmin
       .from("order_items")
       .insert(orderItems);
 
     if (itemsError) {
-      console.error(itemsError);
-      return NextResponse.json(
-        { error: "Erreur articles" },
-        { status: 500 }
-      );
-    }
+  console.error("ORDER ITEMS ERROR:", itemsError.message, itemsError.details);
+  return NextResponse.json(
+    { error: itemsError.message },
+    { status: 500 }
+  );
+}
+
 
     return NextResponse.json({ orderId: order.id });
   } catch (e) {

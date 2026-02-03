@@ -180,6 +180,7 @@ export default function CartDrawer() {
 
             <Link
               href="/checkout"
+              
               onClick={() => setOpen(false)}
 
               className="w-1/2 rounded-xl bg-[#1F5C3A] py-3 text-center text-sm font-semibold text-white hover:opacity-90"

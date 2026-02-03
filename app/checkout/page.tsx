@@ -80,7 +80,7 @@ export default function CheckoutPage() {
   }
 return (
   <div className="relative z-50">
-    <button onClick={continueToPayment}>
+  <button onClick={continueToPayment}>
       Payer maintenant ({eur(baseTotal)})
     </button>
   </div>
