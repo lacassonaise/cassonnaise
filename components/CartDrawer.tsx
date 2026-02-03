@@ -28,7 +28,8 @@ export default function CartDrawer() {
       {/* Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+         className="fixed bottom-0 right-0 z-40 bg-black/40 backdrop-blur-sm"
+
           onClick={() => setOpen(false)}
         />
       )}
@@ -179,6 +180,7 @@ export default function CartDrawer() {
             <Link
               href="/checkout"
               onClick={() => setOpen(false)}
+
               className="w-1/2 rounded-xl bg-[#1F5C3A] py-3 text-center text-sm font-semibold text-white hover:opacity-90"
             >
               Commander
