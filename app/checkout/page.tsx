@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/store/cart";
-import { eur } from "@/lib/format";
 import { calculateDelivery } from "@/lib/delivery";
+import { eur } from "@/lib/format";
 import { supabase } from "@/lib/supabase/client";
 
 export default function CheckoutPage() {
@@ -15,23 +15,20 @@ export default function CheckoutPage() {
 
   const [deliveryType, setDeliveryType] =
     useState<"pickup" | "delivery">("pickup");
+  const [postalCode, setPostalCode] = useState("");
+  const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
-  const [address, setAddress] = useState("");
-  const [postalCode, setPostalCode] = useState("");
 
-  const [deliveryResult, setDeliveryResult] =
-    useState<ReturnType<typeof calculateDelivery> | null>(null);
+  const deliveryResult =
+    deliveryType === "delivery"
+      ? calculateDelivery(postalCode, baseTotal)
+      : null;
 
-  useEffect(() => {
-    if (deliveryType === "delivery" && postalCode) {
-      setDeliveryResult(calculateDelivery(postalCode, baseTotal));
-    } else {
-      setDeliveryResult(null);
-    }
-  }, [deliveryType, postalCode, baseTotal]);
+  const deliveryFeeCents = deliveryResult?.feeCents ?? 0;
+  const finalTotal = baseTotal + deliveryFeeCents;
 
-  async function continueToPayment() {
+  async function pay() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -41,36 +38,28 @@ export default function CheckoutPage() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         items: cart.items,
-        totalCents: baseTotal,
+        totalCents: finalTotal,
         deliveryType,
+        deliveryFeeCents,
+        deliveryFree: deliveryFeeCents === 0,
         phone,
-        note,
         address,
+        note,
         userId: user?.id ?? null,
       }),
     });
 
-    if (!orderRes.ok) {
-      alert("Erreur création commande");
-      return;
-    }
+    if (!orderRes.ok) return alert("Erreur commande");
 
     const { orderId } = await orderRes.json();
 
     const stripeRes = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ totalCents: baseTotal, orderId }),
+      body: JSON.stringify({ totalCents: finalTotal, orderId }),
     });
 
-    if (!stripeRes.ok) {
-      alert("Erreur paiement");
-      return;
-    }
-
     const { url } = await stripeRes.json();
-
-    // ✅ CORRECT : client only, déclenché par un event
     window.location.href = url;
   }
 
@@ -80,8 +69,63 @@ export default function CheckoutPage() {
   }
 
   return (
-    <button onClick={continueToPayment}>
-      Payer maintenant ({eur(baseTotal)})
-    </button>
+    <div className="p-6 space-y-4">
+      <h1 className="text-xl font-bold">Récapitulatif</h1>
+
+      {cart.items.map((i) => (
+        <div key={i.id}>
+          {i.quantity}× {i.name} — {eur(i.priceCents)}
+        </div>
+      ))}
+
+      <hr />
+
+      <label>
+        <input
+          type="radio"
+          checked={deliveryType === "pickup"}
+          onChange={() => setDeliveryType("pickup")}
+        />
+        À emporter
+      </label>
+
+      <label>
+        <input
+          type="radio"
+          checked={deliveryType === "delivery"}
+          onChange={() => setDeliveryType("delivery")}
+        />
+        Livraison
+      </label>
+
+      {deliveryType === "delivery" && (
+        <>
+          <input
+            placeholder="Code postal"
+            value={postalCode}
+            onChange={(e) => setPostalCode(e.target.value)}
+          />
+          <input
+            placeholder="Téléphone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          <input
+            placeholder="Adresse"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+          />
+        </>
+      )}
+
+      <hr />
+
+      <strong>Total : {eur(finalTotal)}</strong>
+
+      <button onClick={pay} className="bg-black text-white p-3 rounded-xl">
+        Payer maintenant
+      </button>
+    </div>
   );
 }
+
