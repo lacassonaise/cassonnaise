@@ -29,17 +29,18 @@ export default function CartDrawer() {
       {open && (
         <div
          className="fixed bottom-0 right-0 z-40 bg-black/40 backdrop-blur-sm"
-
+          style={{ inset: 0 }}
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* Drawer */}
       <aside
-        className={`fixed right-0 top-0 z-50 h-full w-full max-w-md bg-white shadow-2xl transition-transform duration-300 flex flex-col ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
+  className={`fixed right-0 top-0 z-50 h-full w-full max-w-md bg-white shadow-2xl
+    transition-transform duration-300 flex flex-col
+    ${open ? "translate-x-0 pointer-events-auto" : "translate-x-full pointer-events-none"}
+  `}
+>
         {/* Header */}
         <div className="flex h-16 items-center justify-between px-5 shrink-0">
           <div className="text-lg font-bold">Votre panier</div>
