@@ -1,7 +1,8 @@
 import "./globals.css";
 import Header from "@/components/Header";
 import PromoBar from "@/components/PromoBar";
-import CartDrawer from "@/components/CartDrawer";
+import CartDrawerClient from "@/components/CartDrawerClient";
+
 import Footer from "@/components/Footer";
 
 /* =====================
@@ -92,7 +93,9 @@ export default function RootLayout({
         <Footer />
 
         {/* PANIER */}
-        <CartDrawer />
+    
+       <CartDrawerClient />
+
       </body>
     </html>
   );

@@ -1,6 +1,10 @@
 "use client";
-const cart = useCart();
 
+import CartDrawer from "./CartDrawer";
+
+export default function CartDrawerClient() {
+  return <CartDrawer />;
+}
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/store/cart";
