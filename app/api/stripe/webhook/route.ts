@@ -1,69 +1,40 @@
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { sendOrderEmailWithPdf } from "@/lib/sendOrderEmailWithPdf";
 
-let stripe: Stripe | null = null;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-12-15.clover",
+});
 
-function getStripe() {
-  if (!stripe) {
-    if (!process.env.STRIPE_SECRET_KEY) {
-      throw new Error("Stripe not configured at runtime");
-    }
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  }
-  return stripe;
-}
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req: Request) {
-  const signature = req.headers.get("stripe-signature");
-  if (!signature) {
-    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
-  }
-
   const body = await req.text();
+  const sig = req.headers.get("stripe-signature")!;
 
-  let event: Stripe.Event;
+  let event;
 
   try {
-    event = getStripe().webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    event = stripe.webhooks.constructEvent(body, sig, endpointSecret!);
+  } catch (err: any) {
+    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
-  const supabaseAdmin = getSupabaseAdmin();
-
+  // 1. Gérer le paiement réussi
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
 
     if (orderId) {
-      await supabaseAdmin
+      const supabase = getSupabaseAdmin();
+      
+      // Mettre à jour le statut de la commande dans Supabase
+      const { error } = await supabase
         .from("orders")
-        .update({ status: "paid" })
+        .update({ status: "paid", updated_at: new Date() })
         .eq("id", orderId);
 
-      const { data: order } = await supabaseAdmin
-        .from("orders")
-        .select("*")
-        .eq("id", orderId)
-        .single();
-
-      const { data: items } = await supabaseAdmin
-        .from("order_items")
-        .select("*")
-        .eq("order_id", orderId);
-
-      if (order) {
-        await sendOrderEmailWithPdf(order, items ?? []);
-      }
+      if (error) console.error("Erreur maj commande:", error);
     }
   }
 
