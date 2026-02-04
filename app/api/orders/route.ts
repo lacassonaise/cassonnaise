@@ -11,42 +11,36 @@ export async function POST(req: Request) {
 
     const { items, totalCents, phone, note, userId } = body;
 
-    // ✅ Validations
+    // 1. Validation de base
     if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: "Panier invalide" }, { status: 400 });
+      return NextResponse.json({ error: "Le panier est vide" }, { status: 400 });
     }
 
-    if (typeof totalCents !== "number" || totalCents <= 0) {
-      return NextResponse.json({ error: "Total invalide" }, { status: 400 });
-    }
-
-    // 1️⃣ Création commande
+    // 2. Création de la commande
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
-        user_id: userId,
+        user_id: userId || null, // Évite de planter si userId est undefined
         status: "pending",
         total_cents: totalCents,
-        phone,
-        note,
+        phone: phone || "",
+        note: note || "",
       })
       .select()
       .single();
 
-    if (orderError || !order) {
-      console.error(orderError);
-      return NextResponse.json(
-        { error: "Erreur création commande" },
-        { status: 500 }
-      );
+    if (orderError) {
+      console.error("Erreur table orders:", orderError.message);
+      return NextResponse.json({ error: orderError.message }, { status: 500 });
     }
 
-    // 2️⃣ Articles commande
+    // 3. Préparation des articles
+    // On utilise un try/catch interne pour attraper l'erreur de validation des items
     const orderItems = items.map((item: any) => {
       if (!item.id || !item.priceCents || !item.quantity) {
-        throw new Error("Article invalide");
+        // Au lieu de throw, on peut vérifier avant
+        return null;
       }
-
       return {
         order_id: order.id,
         product_id: item.id,
@@ -56,24 +50,24 @@ export async function POST(req: Request) {
       };
     });
 
+    if (orderItems.includes(null)) {
+      return NextResponse.json({ error: "Données d'articles incomplètes" }, { status: 400 });
+    }
+
+    // 4. Insertion des articles
     const { error: itemsError } = await supabaseAdmin
       .from("order_items")
       .insert(orderItems);
 
     if (itemsError) {
-      console.error(itemsError);
-      return NextResponse.json(
-        { error: "Erreur articles commande" },
-        { status: 500 }
-      );
+      console.error("Erreur table order_items:", itemsError.message);
+      return NextResponse.json({ error: itemsError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ orderId: order.id });
+    return NextResponse.json({ success: true, orderId: order.id });
+
   } catch (e: any) {
-    console.error(e);
-    return NextResponse.json(
-      { error: "Erreur serveur" },
-      { status: 500 }
-    );
+    console.error("Exception globale:", e);
+    return NextResponse.json({ error: "Erreur interne", message: e.message }, { status: 500 });
   }
 }
