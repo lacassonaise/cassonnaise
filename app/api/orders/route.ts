@@ -1,5 +1,5 @@
-export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -9,19 +9,9 @@ export async function POST(req: Request) {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await req.json();
 
-    const {
-      items,
-      totalCents,
-      phone,
-      note,
-      userId,
-      deliveryType,
-      deliveryFeeCents,
-      deliveryFree,
-      address,
-    } = body;
+    const { items, totalCents, phone, note, userId } = body;
 
-    // 1. Validations de base
+    // ✅ Validations
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Panier invalide" }, { status: 400 });
     }
@@ -30,7 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Total invalide" }, { status: 400 });
     }
 
-    // 2. Création de la commande principale (Order)
+    // 1️⃣ Création commande
     const { data: order, error: orderError } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -39,50 +29,51 @@ export async function POST(req: Request) {
         total_cents: totalCents,
         phone,
         note,
-        delivery_type: deliveryType,
-        delivery_fee_cents: deliveryFeeCents,
-        delivery_free: deliveryFree,
-        delivery_address: deliveryType === "delivery" ? address : null,
       })
       .select()
       .single();
 
     if (orderError || !order) {
-      console.error("Erreur Order:", orderError);
-      return NextResponse.json({ error: "Erreur création commande" }, { status: 500 });
+      console.error(orderError);
+      return NextResponse.json(
+        { error: "Erreur création commande" },
+        { status: 500 }
+      );
     }
 
-    // 3. Préparation des articles (C'est ici que se trouvait l'erreur)
-    const orderItems = items.map((item) => {
-      // Validation simple de chaque article pendant le mapping
-      if (!item.priceCents || !item.quantity) {
-          throw new Error("Article invalide");
+    // 2️⃣ Articles commande
+    const orderItems = items.map((item: any) => {
+      if (!item.id || !item.priceCents || !item.quantity) {
+        throw new Error("Article invalide");
       }
 
       return {
-        order_id: order.id, // On lie l'article à l'ID de la commande créée au-dessus
-        product_id: item.id, // Assurez-vous que vos items ont un id de produit
+        order_id: order.id,
+        product_id: item.id,
         quantity: item.quantity,
         price_cents: item.priceCents,
-        name: item.name || "Bijou", // Optionnel : stocker le nom au moment de l'achat
+        name: item.name ?? "Produit",
       };
     });
 
-    // 4. Insertion groupée des articles (Order Items)
     const { error: itemsError } = await supabaseAdmin
       .from("order_items")
       .insert(orderItems);
 
     if (itemsError) {
-      console.error("ORDER ITEMS ERROR:", itemsError.message);
-      return NextResponse.json({ error: "Erreur lors de l'enregistrement des articles" }, { status: 500 });
+      console.error(itemsError);
+      return NextResponse.json(
+        { error: "Erreur articles commande" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ orderId: order.id });
-
   } catch (e: any) {
-    console.error("Global Error:", e);
-    return NextResponse.json({ error: e.message || "Erreur serveur" }, { status: 500 });
+    console.error(e);
+    return NextResponse.json(
+      { error: "Erreur serveur" },
+      { status: 500 }
+    );
   }
 }
-
