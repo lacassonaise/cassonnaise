@@ -1,10 +1,8 @@
 import "./globals.css";
 import Header from "@/components/Header";
 import PromoBar from "@/components/PromoBar";
-import CartDrawerClient from "@/components/CartDrawerClient";
-
 import Footer from "@/components/Footer";
-
+import Providers from "./providers";
 /* =====================
    METADATA (SEO + JSON-LD)
 ===================== */
@@ -70,6 +68,11 @@ export const metadata = {
    ROOT LAYOUT
 ===================== */
 
+export const metadata = {
+  title: "Cassonnaise",
+  description: "Pizza, Tacos & Burgers à Casson",
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -78,25 +81,17 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="min-h-screen bg-white text-gray-900 flex flex-col">
-        {/* HEADER */}
         <Header />
 
-        {/* PROMO BAR */}
-        <PromoBar />
+        <Providers>
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+            {children}
+          </main>
+        </Providers>
 
-        {/* CONTENU */}
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-          {children}
-        </main>
-
-        {/* FOOTER */}
         <Footer />
-
-        {/* PANIER */}
-    
-       <CartDrawerClient />
-
       </body>
     </html>
   );
 }
+
