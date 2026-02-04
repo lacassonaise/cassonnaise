@@ -17,19 +17,35 @@ export default function CheckoutPage() {
 
   if (cart.items.length === 0) return null;
 
+  async function pay() {
+    const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        items: cart.items,
+      }),
+    });
+
+    const { url } = await res.json();
+    window.location.href = url;
+  }
+
   return (
-    <div className="max-w-md mx-auto space-y-4">
+    <div className="max-w-md mx-auto space-y-6">
       <h1 className="text-2xl font-bold">Finaliser la commande</h1>
 
       <input
         placeholder="Téléphone"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
-        className="w-full border rounded p-3"
+        className="w-full border p-3 rounded"
       />
 
-      <button className="w-full bg-black text-white py-3 rounded-xl">
-        Payer
+      <button
+        onClick={pay}
+        className="w-full bg-black text-white py-3 rounded-xl"
+      >
+        Payer maintenant {cart.totalFormatted()}
       </button>
     </div>
   );

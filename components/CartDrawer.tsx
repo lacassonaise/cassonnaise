@@ -1,14 +1,11 @@
 "use client";
 
 import CartDrawer from "./CartDrawer";
-
-export default function CartDrawerClient() {
-  return <CartDrawer />;
-}
+import { eur } from "@/lib/format";
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/store/cart";
-import { eur } from "@/lib/format";
+
 
 export default function CartDrawer() {
   const [open, setOpen] = useState(false);
