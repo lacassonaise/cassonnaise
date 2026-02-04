@@ -1,4 +1,5 @@
 "use client";
+const cart = useCart();
 
 import Link from "next/link";
 import { useState } from "react";
@@ -60,7 +61,7 @@ export default function CartDrawer() {
             </div>
           ) : (
             cart.items.map((it) => {
-              const c = it.customizations;
+              const c = it.customizations?.size;
 
               return (
                 <div
