@@ -1,14 +1,14 @@
 "use client";
 
-import CartDrawer from "./CartDrawer";
+// SUPPRIME CETTE LIGNE : import CartDrawer from "./CartDrawer"; 
 import { eur } from "@/lib/format";
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/store/cart";
 
-
 export default function CartDrawer() {
   const [open, setOpen] = useState(false);
+
   const cart = useCart();
 
   const total = cart.totalCents();
