@@ -10,31 +10,35 @@ import { supabase } from "@/lib/supabase/client";
 export default function CheckoutPage() {
   const router = useRouter();
   const cart = useCart();
-
-  const baseTotal = cart.totalCents();
-
-  const [deliveryType, setDeliveryType] =
-    useState<"pickup" | "delivery">("pickup");
+  
+  // 1. État pour gérer l'hydratation (évite l'erreur 418)
+  const [mounted, setMounted] = useState(false);
+  
+  const [deliveryType, setDeliveryType] = useState<"pickup" | "delivery">("pickup");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
   const [address, setAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
+  const [deliveryResult, setDeliveryResult] = useState<ReturnType<typeof calculateDelivery> | null>(null);
 
-  const [deliveryResult, setDeliveryResult] =
-    useState<ReturnType<typeof calculateDelivery> | null>(null);
+  const baseTotal = cart.totalCents ? cart.totalCents() : 0;
 
+  // 2. On attend que le composant soit monté côté client
   useEffect(() => {
-    if (deliveryType === "delivery" && postalCode) {
+    setMounted(true);
+  }, []);
+
+  // 3. Calcul de la livraison
+  useEffect(() => {
+    if (mounted && deliveryType === "delivery" && postalCode) {
       setDeliveryResult(calculateDelivery(postalCode, baseTotal));
     } else {
       setDeliveryResult(null);
     }
-  }, [deliveryType, postalCode, baseTotal]);
+  }, [deliveryType, postalCode, baseTotal, mounted]);
 
   async function continueToPayment() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     const orderRes = await fetch("/api/order", {
       method: "POST",
@@ -69,21 +73,34 @@ export default function CheckoutPage() {
     }
 
     const { url } = await stripeRes.json();
-
-    // ✅ CORRECT : client only, déclenché par un event
     window.location.href = url;
   }
 
+  // 4. Pendant l'hydratation, on affiche un loader ou rien
+  if (!mounted) {
+    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  }
+
+  // 5. Si le panier est vide après le montage
   if (cart.items.length === 0) {
     router.push("/");
     return null;
   }
-return (
-  <div className="relative z-50">
-  <button onClick={continueToPayment}>
-      Payer maintenant ({eur(baseTotal)})
-    </button>
-  </div>
-);
 
+  return (
+    <div className="relative z-50 p-8 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Finaliser ma commande</h1>
+      
+      {/* Ajoutez vos inputs ici (téléphone, adresse, etc.) */}
+      
+      <div className="mt-8 border-t pt-4">
+        <button 
+          onClick={continueToPayment}
+          className="w-full bg-[#1F5C3A] text-white py-4 rounded-xl font-bold hover:opacity-90"
+        >
+          Payer maintenant ({eur(baseTotal)})
+        </button>
+      </div>
+    </div>
+  );
 }
